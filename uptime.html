@@ -32,6 +32,9 @@
             overflow: hidden;
             transition: transform 0.3s, box-shadow 0.3s;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 调整阴影以适应暗色 */
+            height: 100%; /* 确保卡片高度一致 */
+            display: flex;
+            flex-direction: column;
         }
         .status-card:hover {
             transform: translateY(-5px);
@@ -64,6 +67,9 @@
         }
         .card-body {
              color: var(--bs-text-light); /* 卡片内容文字亮色 */
+             flex: 1; /* 让卡片主体内容占据剩余空间 */
+             display: flex;
+             flex-direction: column;
         }
         .status-text.text-success {
              color: #63e6be !important; /* 调整成功文字颜色 */
@@ -258,6 +264,39 @@
             color: #adb5bd;
             font-style: italic;
         }
+
+        /* 新增对齐样式 */
+        .col-md-6.col-lg-3.mb-4 {
+            display: flex;
+        }
+        .current-status {
+            height: 160px; /* 固定状态区域高度 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .reward-status {
+            min-height: 40px; /* 最小高度确保足够空间 */
+            display: flex;
+            align-items: center;
+        }
+        .status-text {
+            margin: 0; /* 重置margin确保对齐 */
+            line-height: 1.5;
+            height: 1.5em; /* 固定高度 */
+            display: flex;
+            align-items: center;
+        }
+        .time-prediction {
+            flex: 1; /* 时间预测区域占据剩余空间 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 120px; /* 确保至少有三行的空间 */
+        }
+        .history-section {
+            margin-top: auto; /* 将历史记录推到底部 */
+        }
     </style>
 </head>
 <body>
@@ -344,7 +383,7 @@
                             <span class="chest-container"></span>
                             <h5 class="status-text d-inline-block"></h5>
                         </div>
-                        <div class="time-prediction mt-2"></div>
+                        <div class="time-prediction mt-1"></div>
                     </div>
                     
                     <div class="dungeon-info">
@@ -484,12 +523,31 @@
         
         // 修正时间为标准时间点
         function adjustToStandardTime(date) {
-            // 找出最接近的标准时间点
-            const standardHour = STANDARD_TIMES.find(h => h === date.getHours()) || 
-                                STANDARD_TIMES[0]; // 默认使用第一个标准时间点
-            
+            // 找出最接近的标准时间点 (向前查找)
+            const hour = date.getHours();
+            let closestHour = STANDARD_TIMES[0]; // 默认第一个
+            for (const standardHour of STANDARD_TIMES) {
+                if (hour >= standardHour) {
+                    closestHour = standardHour;
+                } else {
+                    break; // 因为 STANDARD_TIMES 是排序的，一旦超过就可以停止
+                }
+            }
+
+            // 处理跨天情况（虽然在此函数调用上下文中可能不必要，但保持与 getStandardStartTime 一致）
+            if (hour < STANDARD_TIMES[0]) {
+                 // 如果小时小于第一个标准时间，则认为是前一天的最后一个标准时间
+                 // 但这里假设输入的 date 已经是正确的日期，我们只调整小时
+                 // 为了简化，这里仅处理当天的情况。如果需要严格一致，逻辑会更复杂。
+                 // 鉴于此函数主要用于 calculateAndDisplayPossibleEndTimes，
+                 // 输入的 date 已经是基于 last_bonus_starts[0] 计算得到的，
+                 // 跨天问题应该由 getStandardStartTime 在处理历史记录时解决。
+                 // 因此，简单地使用找到的 closestHour 即可。
+            }
+
             const adjusted = new Date(date);
-            adjusted.setHours(standardHour, 0, 0, 0);
+            // 将小时设置为找到的最接近的过去标准时间点
+            adjusted.setHours(closestHour, 0, 0, 0);
             return adjusted;
         }
         
@@ -883,7 +941,7 @@
             
             if (timeDiff > 0) {
                 const forceStartId = `force-start-${data.data_center}`;
-                const forceStartTimeStr = formatDateTime(forceStartTime);
+                const forceStartTimeStr = formatDateTimeMD(forceStartTime);
                 html += `
                     <div class="time-row">
                         <span class="countdown-label">强制开启:</span>
