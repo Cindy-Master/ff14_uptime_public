@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FF14 限时奖励监控</title>
+    <link rel="icon" href="https://uptime.ff14.xin/chest.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bs-dark-purple: #301934; /* 主暗紫色 */
+            --bs-medium-purple: #48284a; /* 卡片背景 */
+            --bs-light-purple: #6c4c74; /* 悬停/点缀 */
+            --bs-active-purple: #5a3a75; /* 活动状态 */
+            --bs-inactive-purple: #4d325a; /* 非活动状态 */
+            --bs-text-light: #f8f9fa; /* 亮色文字 */
+            --bs-text-muted-dark: #adb5bd; /* 暗色模式下的次要文字 */
+        }
+
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background-color: var(--bs-dark-purple); /* 使用暗紫色 */
+            color: var(--bs-text-light); /* 确保基础文本为亮色 */
+            padding: 20px;
+        }
+        .status-card {
+            margin-bottom: 20px;
+            background-color: var(--bs-medium-purple); /* 卡片背景 */
+            border: 1px solid var(--bs-light-purple); /* 添加边框以便区分 */
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 调整阴影以适应暗色 */
+        }
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); /* 调整悬停阴影 */
+        }
+        .card-header {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--bs-text-light); /* 标题文字亮色 */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1.25rem;
+        }
+        .card-header.active {
+            background-color: var(--bs-active-purple) !important; /* 活动状态紫色 */
+            border-bottom: 1px solid var(--bs-light-purple);
+        }
+        .card-header.inactive {
+            background-color: var(--bs-inactive-purple) !important; /* 非活动状态深紫色 */
+            border-bottom: 1px solid var(--bs-light-purple);
+        }
+        .status-badge.bg-success {
+             background-color: #28a745 !important; /* 保留成功绿色，或改为亮紫色 */
+             color: white;
+        }
+        .status-badge.bg-danger {
+             background-color: #dc3545 !important; /* 保留危险红色，或改为深红紫色 */
+            color: white;
+        }
+        .card-body {
+             color: var(--bs-text-light); /* 卡片内容文字亮色 */
+        }
+        .status-text.text-success {
+             color: #63e6be !important; /* 调整成功文字颜色 */
+        }
+        .status-text.text-danger {
+             color: #f06595 !important; /* 调整危险文字颜色 */
+        }
+        .time-badge {
+            font-size: 0.9rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .history-table {
+            font-size: 0.9rem;
+            color: var(--bs-text-light); /* 表格文字亮色 */
+        }
+        .history-table thead th {
+            color: var(--bs-text-muted-dark); /* 表头文字稍暗 */
+            border-bottom: 1px solid var(--bs-light-purple);
+        }
+         .history-table tbody td {
+            border-top: 1px solid var(--bs-light-purple);
+        }
+         .history-table tbody tr:last-child td {
+             border-bottom: none;
+        }
+        .last-updated {
+            font-size: 0.8rem;
+            color: var(--bs-text-muted-dark); /* 更新时间文字颜色 */
+            text-align: center;
+            margin-top: 20px;
+        }
+        .history-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--bs-text-light);
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--bs-text-light); /* 加载文字亮色 */
+        }
+        .spinner-border {
+            color: var(--bs-light-purple); /* 加载动画颜色 */
+        }
+        .btn-primary {
+            background-color: var(--bs-light-purple); /* 按钮背景 */
+            border-color: var(--bs-medium-purple); /* 按钮边框 */
+            color: var(--bs-text-light); /* 按钮文字 */
+        }
+        .btn-primary:hover {
+            background-color: var(--bs-active-purple); /* 按钮悬停背景 */
+            border-color: var(--bs-dark-purple);
+        }
+        .alert-danger { /* 调整错误提示框样式 */
+            background-color: #5c2a40;
+            color: var(--bs-text-light);
+            border-color: #803c5a;
+        }
+        
+        /* 新增样式 */
+        .author-link {
+            text-align: center;
+            margin-top: 30px;
+            padding: 10px;
+            font-size: 0.9rem;
+            color: var(--bs-text-muted-dark);
+        }
+        .author-link a {
+            color: var(--bs-light-purple);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        .author-link a:hover {
+            color: var(--bs-text-light);
+            text-decoration: underline;
+        }
+        .chest-icon {
+            width: 32px;
+            height: 32px;
+            margin-right: 5px;
+        }
+        .arrow-up {
+            display: inline-block;
+            color: #63e6be;
+            animation: float 2s ease-in-out infinite;
+            margin-left: -12px;
+            font-size: 1.5rem;
+            position: relative;
+            top: -2px;
+            text-shadow: 0 0 8px #63e6be, 0 0 1px #63e6be; /* 添加轻微同色阴影模拟加粗 */
+        }
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+            100% {
+                transform: translateY(0px);
+            }
+        }
+        .region-nav {
+            margin-bottom: 25px;
+        }
+        .nav-tabs {
+            border-bottom: 1px solid var(--bs-light-purple);
+        }
+        .nav-tabs .nav-link {
+            color: var(--bs-text-muted-dark);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            transition: all 0.3s;
+        }
+        .nav-tabs .nav-link:hover {
+            color: var(--bs-text-light);
+            background-color: var(--bs-medium-purple);
+            border: none;
+        }
+        .nav-tabs .nav-link.active {
+            color: var(--bs-text-light);
+            background-color: var(--bs-light-purple);
+            border: none;
+        }
+        .dungeon-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(108, 76, 116, 0.2);
+            border-radius: 5px;
+        }
+        .dungeon-img {
+            width: 100%;
+            max-width: 280px;
+            height: auto;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        .region-container {
+            display: none;
+        }
+        .region-container.active {
+            display: block;
+        }
+        .status-badge {
+            margin-left: 15px;
+        }
+        .time-prediction {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: rgba(90, 58, 117, 0.3);
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        .countdown {
+            font-weight: bold;
+            color: #f8f9fa;
+            display: inline-block;
+            min-width: 90px;
+            text-align: right;
+        }
+        .countdown-timer {
+            color: #63e6be;
+            font-family: monospace;
+            font-size: 1.1rem;
+            padding: 0 5px;
+        }
+        .countdown-label {
+            display: inline-block;
+            min-width: 90px;
+            color: #adb5bd;
+        }
+        .time-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .time-row:last-child {
+            margin-bottom: 0;
+        }
+        /* 添加具体时间显示的样式 */
+        .exact-time {
+            margin-left: 8px;
+            font-size: 0.8rem;
+            opacity: 0.6;
+            color: #adb5bd;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">FF14 限时奖励监控</h1>
+        
+        <!-- 区域选择导航 -->
+        <ul class="nav nav-tabs region-nav" id="regionTabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-region="china" href="#">中国</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-region="japan" href="#">日本</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-region="europe" href="#">欧洲</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-region="northamerica" href="#">北美</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-region="oceania" href="#">大洋洲</a>
+            </li>
+        </ul>
+        
+        <!-- 各区域的状态容器 -->
+        <div class="region-containers">
+            <!-- 中国区 -->
+            <div class="region-container active" id="china-container">
+                <div class="row" id="china-status"></div>
+            </div>
+            
+            <!-- 日本区 -->
+            <div class="region-container" id="japan-container">
+                <div class="row" id="japan-status"></div>
+            </div>
+            
+            <!-- 欧洲区 -->
+            <div class="region-container" id="europe-container">
+                <div class="row" id="europe-status"></div>
+            </div>
+            
+            <!-- 北美区 -->
+            <div class="region-container" id="northamerica-container">
+                <div class="row" id="northamerica-status"></div>
+            </div>
+            
+            <!-- 大洋洲区 -->
+            <div class="region-container" id="oceania-container">
+                <div class="row" id="oceania-status"></div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading-indicator">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <p class="mt-2">正在获取数据...</p>
+        </div>
+        
+        <div class="last-updated" id="last-updated"></div>
+        
+        <div class="text-center mt-4">
+            <button id="refresh-btn" class="btn btn-primary">刷新数据</button>
+        </div>
+        
+        <!-- 作者链接 -->
+        <div class="author-link">
+            <p><a href="https://github.com/Cindy-Master" target="_blank"><i class="bi bi-github"></i> Cindy-Master</a></p>
+            <p><a href="mailto:your.email@example.com"><i class="bi bi-envelope"></i> 邮件反馈</a></p>
+        </div>
+    </div>
+
+    <!-- 状态卡片模板 -->
+    <template id="status-card-template">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card status-card">
+                <div class="card-header">
+                    <span class="dc-name"></span>
+                    <span class="status-badge"></span>
+                </div>
+                <div class="card-body">
+                    <div class="current-status mb-3">
+                        <div class="reward-status">
+                            <span class="chest-container"></span>
+                            <h5 class="status-text d-inline-block"></h5>
+                        </div>
+                        <div class="time-prediction mt-2"></div>
+                    </div>
+                    
+                    <div class="dungeon-info">
+                        <img src="https://uptime.ff14.xin/mie.png" alt="副本" class="dungeon-img">
+                    </div>
+                    
+                    <div class="history-section">
+                        <div class="history-title">最近奖励记录</div>
+                        <table class="table table-sm history-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">开始时间</th>
+                                    <th scope="col">结束时间</th>
+                                    <th scope="col">持续</th>
+                                </tr>
+                            </thead>
+                            <tbody class="history-body">
+                                <!-- 历史记录会在这里动态插入 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // 按区域分类的数据中心
+        const REGIONS = {
+            china: ['猫小胖', '莫古力', '陆行鸟', '豆豆柴'],
+            japan: ['Elemental', 'Gaia', 'Mana', 'Meteor'],
+            oceania: ['Materia'],
+            europe: ['Light', 'Chaos'],
+            northamerica: ['Aether', 'Crystal', 'Dynamis', 'Primal']
+        };
+        
+        // 标准判定时间点 (北京时间)
+        const STANDARD_TIMES = [5, 11, 17, 23];
+        
+        // 可能的持续时间 (小时)
+        const POSSIBLE_DURATIONS = [3, 6, 9, 12];
+        
+        // 冷却时间和硬上限（小时）
+        const COOLDOWN_HOURS = 24;
+        const HARD_LIMIT_HOURS = 48;
+        
+        // API URL
+        const API_URL = 'https://api.ff14.xin';
+        
+        // 将上报时间归类到最近的标准时间点
+        function getStandardStartTime(timestamp) {
+            const date = new Date(timestamp);
+            const hour = date.getHours();
+            
+            // 找到最接近的标准开始时间 (向前查找)
+            let closestHour = STANDARD_TIMES[0];
+            for (const standardHour of STANDARD_TIMES) {
+                if (hour >= standardHour) {
+                    closestHour = standardHour;
+                } else {
+                    break;
+                }
+            }
+            
+            // 如果没有找到当天的标准时间点，则使用前一天的最后一个时间点
+            if (hour < STANDARD_TIMES[0] || closestHour === STANDARD_TIMES[STANDARD_TIMES.length - 1] && hour > closestHour) {
+                if (hour < STANDARD_TIMES[0]) {
+                    closestHour = STANDARD_TIMES[STANDARD_TIMES.length - 1];
+                    date.setDate(date.getDate() - 1);
+                }
+            }
+            
+            const standardDate = new Date(date);
+            standardDate.setHours(closestHour, 0, 0, 0);
+            return standardDate;
+        }
+        
+        // 推测持续时间和结束时间
+        function inferDurationAndEndTime(startTime, endTime) {
+            if (!startTime || !endTime) return { duration: '未知', endTimeStr: '未知' };
+            
+            const start = new Date(startTime);
+            const end = new Date(endTime);
+            const diffHours = Math.round((end - start) / (1000 * 60 * 60));
+            
+            // 找到最接近的可能持续时间
+            let closestDuration = POSSIBLE_DURATIONS[0];
+            for (const duration of POSSIBLE_DURATIONS) {
+                if (Math.abs(duration - diffHours) < Math.abs(closestDuration - diffHours)) {
+                    closestDuration = duration;
+                }
+            }
+            
+            // 计算推测的结束时间
+            const inferredEnd = new Date(start);
+            inferredEnd.setHours(inferredEnd.getHours() + closestDuration);
+            
+            return {
+                duration: `${closestDuration}小时`,
+                endTimeStr: formatDateTime(inferredEnd)
+            };
+        }
+        
+        // 格式化日期时间
+        function formatDateTime(date) {
+            if (!date) return '未知';
+            if (typeof date === 'string') date = new Date(date);
+            
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const hour = date.getHours();
+            const min = date.getMinutes();
+            
+            // 整点显示
+            if (min === 0) {
+                return `${month}月${day}日${hour}:00`;
+            } else {
+            return `${month}月${day}日${hour}:${min.toString().padStart(2, '0')}`;
+            }
+        }
+        function formatDateTimeMD(date) {
+            if (!date) return '未知';
+            if (typeof date === 'string') date = new Date(date);
+            
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const hour = date.getHours();
+            const min = date.getMinutes();
+            
+            // 整点显示
+            if (min === 0) {
+                return `${month}-${day} ${hour}:00`;
+            } else {
+            return `${month}-${day} ${hour}:${min.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        // 修正时间为标准时间点
+        function adjustToStandardTime(date) {
+            // 找出最接近的标准时间点
+            const standardHour = STANDARD_TIMES.find(h => h === date.getHours()) || 
+                                STANDARD_TIMES[0]; // 默认使用第一个标准时间点
+            
+            const adjusted = new Date(date);
+            adjusted.setHours(standardHour, 0, 0, 0);
+            return adjusted;
+        }
+        
+        // 创建状态卡片
+        function createStatusCard(data) {
+            const template = document.getElementById('status-card-template');
+            const clone = template.content.cloneNode(true);
+            
+            // 填充数据中心名称
+            clone.querySelector('.dc-name').textContent = data.data_center;
+            
+            // 设置当前状态
+            const cardHeader = clone.querySelector('.card-header');
+            const statusBadge = clone.querySelector('.status-badge');
+            const statusText = clone.querySelector('.status-text');
+            const chestContainer = clone.querySelector('.chest-container');
+            const timePrediction = clone.querySelector('.time-prediction');
+            
+            if (data.is_uptime) {
+                cardHeader.classList.add('active');
+                statusBadge.textContent = '进行中';
+                statusBadge.classList.add('badge', 'bg-success');
+                statusText.textContent = '限时奖励进行中！';
+                statusText.classList.add('text-success');
+                
+                // 添加宝箱图标和浮动箭头
+                chestContainer.innerHTML = '<img src="https://uptime.ff14.xin/chest.png" alt="奖励箱" class="chest-icon"><i class="bi bi-arrow-up arrow-up"></i>';
+                
+                // 计算可能的结束时间
+                calculateAndDisplayPossibleEndTimes(data, timePrediction);
+                
+            } else {
+                cardHeader.classList.add('inactive');
+                statusBadge.textContent = '未开启';
+                statusBadge.classList.add('badge', 'bg-danger');
+                statusText.textContent = '当前无限时奖励';
+                statusText.classList.add('text-danger');
+                
+                // 计算下次可能的开启时间和强制开启时间
+                calculateAndDisplayNextPossibleStartTimes(data, timePrediction);
+            }
+            
+            // 填充历史记录
+            const historyBody = clone.querySelector('.history-body');
+            
+            // 整理开始和结束时间配对
+            let historyPairs = [];
+            const startTimes = data.last_bonus_starts || [];
+            const endTimes = data.last_bonus_ends || [];
+            
+            // 标准化每个开始时间
+            const standardizedStarts = startTimes.map(time => {
+                const standardStart = getStandardStartTime(time);
+                return {
+                    original: time,
+                    standard: standardStart,
+                    standardStr: formatDateTime(standardStart)
+                };
+            });
+            
+            // 为每个开始时间寻找对应的结束时间
+            for (let i = 0; i < standardizedStarts.length; i++) {
+                // 默认值
+                let endTimeStr = '未知';
+                let durationStr = '未知';
+                
+                if (i < endTimes.length) {
+                    const { duration, endTimeStr: inferredEndStr } = 
+                        inferDurationAndEndTime(standardizedStarts[i].standard, endTimes[i]);
+                    
+                    durationStr = duration;
+                    endTimeStr = inferredEndStr;
+                }
+                
+                historyPairs.push({
+                    startTime: standardizedStarts[i].standardStr,
+                    endTime: endTimeStr,
+                    duration: durationStr
+                });
+            }
+            
+            // 添加历史记录行
+            historyPairs.forEach(pair => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${pair.startTime}</td>
+                    <td>${pair.endTime}</td>
+                    <td>${pair.duration}</td>
+                `;
+                historyBody.appendChild(row);
+            });
+            
+            // 如果没有历史记录
+            if (historyPairs.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="3" class="text-center">暂无数据</td>`;
+                historyBody.appendChild(row);
+            }
+            
+            return clone;
+        }
+        
+        // 获取并显示区域状态数据
+        async function fetchAndDisplayRegionStatus(region) {
+            const containerID = `${region}-status`;
+            const container = document.getElementById(containerID);
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const lastUpdatedElement = document.getElementById('last-updated');
+            
+            if (!container) return;
+            
+            // 清空当前区域内容并显示加载动画
+            container.innerHTML = '';
+            loadingIndicator.style.display = 'block'; // 显示全局加载指示
+            
+            try {
+                // 获取该区域所有数据中心
+                const dataCenters = REGIONS[region] || [];
+                
+                // 并行请求所有数据中心的状态
+                const promises = dataCenters.map(dc => 
+                    fetch(`${API_URL}/status?data_center=${encodeURIComponent(dc)}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`API Error ${response.status} for ${dc}`);
+                            }
+                            return response.json();
+                        })
+                        .catch(error => {
+                            console.error(`Fetch error for ${dc}:`, error);
+                            // 返回一个错误标记对象，以便后续处理
+                            return { error: true, data_center: dc, message: error.message };
+                        })
+                );
+                
+                const results = await Promise.all(promises);
+                
+                // 显示每个数据中心的状态卡片 或 错误信息
+                results.forEach(data => {
+                    if (data.error) {
+                         // 显示错误卡片或信息
+                         const errorCard = document.createElement('div');
+                         errorCard.className = 'col-md-6 col-lg-3 mb-4';
+                         errorCard.innerHTML = `
+                            <div class="card status-card border-danger">
+                                <div class="card-header inactive">
+                                    <span class="dc-name">${data.data_center}</span>
+                                     <span class="status-badge badge bg-danger">错误</span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-danger">获取数据失败:</p>
+                                    <small class="text-muted">${data.message}</small>
+                                </div>
+                            </div>
+                         `;
+                         container.appendChild(errorCard);
+                    } else {
+                        const card = createStatusCard(data);
+                        container.appendChild(card);
+                    }
+                });
+
+                 // 更新最后刷新时间
+                lastUpdatedElement.textContent = `最后更新 (${region}): ${new Date().toLocaleString('zh-CN')}`;
+                
+            } catch (error) {
+                // 这个 catch 主要捕获 Promise.all 本身的错误，理论上不应该发生，因为子 promise 的错误被内部捕获了
+                console.error(`获取${region}数据时发生意外错误:`, error);
+                container.innerHTML = `
+                    <div class="col-12 text-center">
+                        <div class="alert alert-danger">
+                            获取数据时发生未知错误。
+                        </div>
+                    </div>
+                `;
+            } finally {
+                 loadingIndicator.style.display = 'none'; // 隐藏加载指示
+            }
+        }
+        
+        // 切换区域
+        function switchRegion(region) {
+            // 移除所有激活状态
+            document.querySelectorAll('.region-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            
+            document.querySelectorAll('#regionTabs .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 激活选中的区域
+            document.getElementById(`${region}-container`).classList.add('active');
+            document.querySelector(`#regionTabs .nav-link[data-region="${region}"]`).classList.add('active');
+        }
+        
+        // 清除指定区域的倒计时
+        function clearRegionCountdowns(region) {
+            const regionContainer = document.getElementById(`${region}-container`);
+            if (!regionContainer) return;
+
+            regionContainer.querySelectorAll('.countdown').forEach(element => {
+                if (element.dataset.intervalId) {
+                    clearInterval(parseInt(element.dataset.intervalId));
+                    console.log(`[Countdown] Cleared interval for: ${element.id} in region ${region}`);
+                    // Optionally reset display
+                    const timerElement = element.querySelector('.countdown-timer');
+                    if (timerElement) timerElement.textContent = '--:--:--';
+                    delete element.dataset.intervalId; // 移除属性
+                }
+            });
+        }
+
+        // 初始加载
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. 确定初始活动区域
+            const initialActiveTab = document.querySelector('#regionTabs .nav-link.active');
+            const initialRegion = initialActiveTab ? initialActiveTab.getAttribute('data-region') : 'china'; // 默认中国区
+
+            // 2. 加载初始区域数据
+            fetchAndDisplayRegionStatus(initialRegion);
+            
+            // 区域选项卡事件
+            document.querySelectorAll('#regionTabs .nav-link').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const region = tab.getAttribute('data-region');
+                    const currentActiveTab = document.querySelector('#regionTabs .nav-link.active');
+                    
+                    // 如果点击的不是当前活动标签页
+                    if (!tab.classList.contains('active')) {
+                        // 清除即将切换到的区域的 (可能存在的) 旧倒计时
+                         clearRegionCountdowns(region);
+                        // 切换视觉效果
+                        switchRegion(region);
+                        // 获取新区域的数据
+                        fetchAndDisplayRegionStatus(region);
+                    }
+                });
+            });
+            
+            // 刷新按钮事件
+            document.getElementById('refresh-btn').addEventListener('click', () => {
+                // 找到当前活动的区域
+                const activeTab = document.querySelector('#regionTabs .nav-link.active');
+                if (activeTab) {
+                    const activeRegion = activeTab.getAttribute('data-region');
+                    // 清除当前活动区域的倒计时
+                    clearRegionCountdowns(activeRegion);
+                    // 重新获取当前活动区域的数据
+                    fetchAndDisplayRegionStatus(activeRegion);
+                } else {
+                    console.warn("Refresh button clicked, but no active region tab found.");
+                }
+            });
+        });
+        
+        // 计算并显示可能的结束时间（针对开启状态）
+        function calculateAndDisplayPossibleEndTimes(data, container) {
+            // 如果没有最近的开始时间，则无法预测
+            if (!data.last_bonus_starts || data.last_bonus_starts.length === 0) {
+                container.innerHTML = '<small class="text-muted">无法预测可能的结束时间</small>';
+                return;
+            }
+            
+            // 取最近的开始时间并调整为标准时间点
+            let lastStart = new Date(data.last_bonus_starts[0]);
+            lastStart = adjustToStandardTime(lastStart);
+            const now = new Date();
+            
+            // 生成可能的结束时间点
+            const possibleEndTimes = POSSIBLE_DURATIONS.map(duration => {
+                const endTime = new Date(lastStart);
+                endTime.setHours(endTime.getHours() + duration);
+                return {
+                    duration: duration,
+                    time: endTime,
+                    isExpired: endTime < now
+                };
+            }).filter(item => !item.isExpired);
+            
+            // 如果所有可能的时间点都已过期，则显示"即将结束"
+            if (possibleEndTimes.length === 0) {
+                container.innerHTML = '<small class="text-warning">奖励可能即将结束</small>';
+                return;
+            }
+            
+            // 显示可能的结束时间
+            const endTimesHTML = possibleEndTimes.map(item => {
+                const timeStr = formatDateTimeMD(item.time);
+                const countdownId = `countdown-${data.data_center}-${item.duration}`;
+                
+                return `
+                    <div class="time-row">
+                        <span class="countdown-label">${item.duration}小时结束:</span>
+                        <span class="countdown" id="${countdownId}" data-target-time="${item.time.getTime()}">
+                            <span class="countdown-timer">--:--:--</span>
+                        </span>
+                        <span class="exact-time">${timeStr}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = endTimesHTML;
+            
+            // 启动倒计时
+            possibleEndTimes.forEach(item => {
+                const countdownId = `countdown-${data.data_center}-${item.duration}`;
+                const countdownElement = container.querySelector(`#${countdownId}`);
+                if (countdownElement) {
+                    startCountdown(countdownElement, item.time);
+                } else {
+                    console.error(`[CalculateEnds] Countdown element not found after innerHTML: #${countdownId}`);
+                }
+            });
+        }
+        
+        // 计算并显示下次可能开启时间和强制开启时间（针对关闭状态）
+        function calculateAndDisplayNextPossibleStartTimes(data, container) {
+            // 如果没有最近的开始/结束时间，则无法预测
+            if (!data.last_bonus_starts || data.last_bonus_starts.length === 0) {
+                container.innerHTML = '<small class="text-muted">无历史数据，无法预测</small>';
+                return;
+            }
+            
+            // 取最近的开始时间并调整为标准时间点
+            let lastStart = new Date(data.last_bonus_starts[0]);
+            lastStart = adjustToStandardTime(lastStart);
+            const now = new Date();
+            
+            // 计算冷却结束时间（从上次奖励开始时间算起24小时）
+            const cooldownEndTime = new Date(lastStart);
+            cooldownEndTime.setHours(cooldownEndTime.getHours() + COOLDOWN_HOURS);
+            
+            // 计算强制开启时间（从上次奖励开始时间算起48小时）
+            const forceStartTime = new Date(lastStart);
+            forceStartTime.setHours(forceStartTime.getHours() + HARD_LIMIT_HOURS);
+            
+            // 计算下一个可能的判定时间点
+            let nextCheckTime = null;
+            // 只有冷却结束后才会在标准时间点判定
+            if (now > cooldownEndTime) {
+                // 找到下一个标准判定时间点
+                const todayChecks = STANDARD_TIMES.map(hour => {
+                    const check = new Date(now);
+                    check.setHours(hour, 0, 0, 0);
+                    if (check <= now) {
+                        // 如果今天的检查点已过，则使用明天的同一时间
+                        check.setDate(check.getDate() + 1);
+                    }
+                    return check;
+                }).sort((a, b) => a - b);
+                
+                nextCheckTime = todayChecks[0];
+            }
+            
+            let html = '';
+            const timersToStart = [];
+            
+            // 如果当前在冷却中
+            if (now < cooldownEndTime) {
+                const cooldownId = `cooldown-${data.data_center}`;
+                const cooldownTimeStr = formatDateTimeMD(cooldownEndTime);
+                html += `
+                    <div class="time-row">
+                        <span class="countdown-label">冷却结束:</span>
+                        <span class="countdown" id="${cooldownId}" data-target-time="${cooldownEndTime.getTime()}">
+                            <span class="countdown-timer">--:--:--</span>
+                        </span>
+                        <span class="exact-time">${cooldownTimeStr}</span>
+                    </div>
+                `;
+                timersToStart.push({ id: cooldownId, time: cooldownEndTime });
+            } else if (nextCheckTime) {
+                const nextCheckId = `next-check-${data.data_center}`;
+                const nextCheckTimeStr = formatDateTimeMD(nextCheckTime);
+                html += `
+                    <div class="time-row">
+                        <span class="countdown-label">下次判定:</span>
+                        <span class="countdown" id="${nextCheckId}" data-target-time="${nextCheckTime.getTime()}">
+                            <span class="countdown-timer">--:--:--</span>
+                        </span>
+                        <span class="exact-time">${nextCheckTimeStr}</span>
+                    </div>
+                `;
+                 timersToStart.push({ id: nextCheckId, time: nextCheckTime });
+            }
+            
+            // 强制开启倒计时
+            const timeDiff = forceStartTime - now;
+            
+            if (timeDiff > 0) {
+                const forceStartId = `force-start-${data.data_center}`;
+                const forceStartTimeStr = formatDateTime(forceStartTime);
+                html += `
+                    <div class="time-row">
+                        <span class="countdown-label">强制开启:</span>
+                        <span class="countdown" id="${forceStartId}" data-target-time="${forceStartTime.getTime()}">
+                            <span class="countdown-timer">--:--:--</span>
+                        </span>
+                        <span class="exact-time">${forceStartTimeStr}</span>
+                    </div>
+                `;
+                 timersToStart.push({ id: forceStartId, time: forceStartTime });
+            } else {
+                html += `
+                    <div class="time-row">
+                        <span class="countdown-label">强制开启:</span>
+                        <span class="countdown-timer">即将开启</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            
+            // 启动所有需要的倒计时
+            timersToStart.forEach(timer => {
+                const countdownElement = container.querySelector(`#${timer.id}`);
+                if (countdownElement) {
+                    startCountdown(countdownElement, timer.time);
+                } else {
+                     console.error(`[CalculateStarts] Countdown element not found after innerHTML: #${timer.id}`);
+                }
+            });
+        }
+        
+        // 启动倒计时定时器
+        function startCountdown(countdownElement, targetTime) {
+            console.log(`[Countdown] Starting for element: ${countdownElement.id}, Target Time: ${targetTime}`); // Log 1
+            if (!countdownElement) {
+                console.error(`[Countdown] Invalid element passed to startCountdown.`); // Log 2
+                return;
+            }
+            
+            const updateCountdown = () => {
+                const now = new Date();
+                const timeDiff = targetTime - now;
+                // console.log(`[Countdown] Updating ${countdownElement.id}, Time Diff: ${timeDiff}`); // Log 3
+                
+                if (timeDiff <= 0) {
+                    // 倒计时结束
+                    const timerElement = countdownElement.querySelector('.countdown-timer');
+                    if (timerElement) {
+                        timerElement.textContent = '00:00:00';
+                    } else {
+                        console.error(`[Countdown] Timer element not found inside ${countdownElement.id} on end.`); // Log 4
+                    }
+                    // 清除定时器
+                    if (countdownElement.dataset.intervalId) {
+                        clearInterval(parseInt(countdownElement.dataset.intervalId));
+                    }
+                    return;
+                }
+                
+                // 计算时、分、秒
+                const totalSeconds = Math.floor(timeDiff / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                
+                // 格式化为 HH:MM:SS
+                const formattedHours = String(hours).padStart(2, '0');
+                const formattedMinutes = String(minutes).padStart(2, '0');
+                const formattedSeconds = String(seconds).padStart(2, '0');
+                
+                // 更新显示
+                const timerDisplay = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+                const timerElement = countdownElement.querySelector('.countdown-timer');
+                if (timerElement) {
+                    timerElement.textContent = timerDisplay;
+                } else {
+                     console.error(`[Countdown] Timer element not found inside ${countdownElement.id} during update.`); // Log 5
+                }
+            };
+            
+            // 立即更新一次
+            updateCountdown();
+            
+            // 设置每秒更新一次
+            const intervalId = setInterval(updateCountdown, 1000);
+            
+            // 记录定时器ID以便在需要时清除
+            countdownElement.dataset.intervalId = intervalId;
+        }
+    </script>
+</body>
+</html>
