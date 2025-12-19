@@ -431,7 +431,7 @@
         const HARD_LIMIT_HOURS = 48;
         
         // API URL
-        const API_URL = 'https://api.ff14.xin';
+        const API_URL = 'https://uptime.ff14.xin';
         
         // 将上报时间归类到最近的标准时间点
         function getStandardStartTime(timestamp) {
@@ -613,15 +613,34 @@
                 // 默认值
                 let endTimeStr = '未知';
                 let durationStr = '未知';
-                
-                if (i < endTimes.length) {
-                    const { duration, endTimeStr: inferredEndStr } = 
-                        inferDurationAndEndTime(standardizedStarts[i].standard, endTimes[i]);
-                    
-                    durationStr = duration;
-                    endTimeStr = inferredEndStr;
+                let endTimeIndex = -1;
+
+                if (data.is_uptime) {
+                    // 如果奖励正在进行中
+                    if (i === 0) {
+                        // 第一个开始时间是当前活动时段，还没有结束时间
+                        endTimeIndex = -1; // 标记为没有对应的结束时间索引
+                        endTimeStr = '进行中'; // 或保持 '未知'
+                        durationStr = '进行中'; // 或保持 '未知'
+                    } else {
+                        // 后续的开始时间 (i > 0) 对应于 endTimes 数组中的索引 i-1
+                        endTimeIndex = i - 1;
+                    }
+                } else {
+                    // 如果奖励未开启，开始时间 i 对应结束时间 i
+                    endTimeIndex = i;
                 }
-                
+
+                // 如果找到了有效的结束时间索引并且在数组范围内
+                if (endTimeIndex !== -1 && endTimeIndex < endTimes.length) {
+                    const { duration, endTimeStr: inferredEndStr } =
+                        inferDurationAndEndTime(standardizedStarts[i].standard, endTimes[endTimeIndex]);
+
+                    durationStr = duration;
+                    endTimeStr = inferredEndStr; // 使用推断出的结束时间字符串
+                }
+                // 注意：当 is_uptime=true 且 i=0 时，上面的 if 不会执行，endTimeStr 和 durationStr 保持 "进行中"
+
                 historyPairs.push({
                     startTime: standardizedStarts[i].standardStr,
                     endTime: endTimeStr,
@@ -669,7 +688,7 @@
                 
                 // 并行请求所有数据中心的状态
                 const promises = dataCenters.map(dc => 
-                    fetch(`${API_URL}/status?data_center=${encodeURIComponent(dc)}`)
+                    fetch(`${API_URL}/status?data_center=${encodeURIComponent(dc)}`, { cache: 'no-cache' })
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error(`API Error ${response.status} for ${dc}`);
